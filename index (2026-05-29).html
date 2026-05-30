@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>итд — P2P Свободная Сеть</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #000000; color: #ffffff; min-height: 100vh; padding-bottom: 80px; }
+        
+        /* Мобильная шапка */
+        header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; background-color: #0a0a0c; position: sticky; top: 0; z-index: 100; border-bottom: 1px solid #1c1c1e; }
+        .logo { font-size: 24px; font-weight: 900; color: #ff3b30; cursor: pointer; font-style: italic; letter-spacing: -1px; text-transform: lowercase; }
+        
+        /* Индикатор P2P подключения */
+        .p2p-status { font-size: 12px; padding: 4px 8px; border-radius: 10px; font-weight: bold; background-color: #2c2c2e; color: #aeaea2; }
+        .p2p-status.online { background-color: rgba(48, 209, 88, 0.2); color: #30d158; }
+
+        .container { max-width: 550px; margin: 0 auto; padding: 12px; display: flex; flex-direction: column; gap: 14px; }
+        
+        /* Панель синхронизации (вместо серверов) */
+        .p2p-panel { background: #1c1c1e; border: 1px solid #2c2c2e; padding: 12px; border-radius: 16px; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+        .p2p-panel input { width: 100%; padding: 8px; background: #000; border: 1px solid #3a3a3c; color: #fff; border-radius: 8px; outline: none; font-size: 12px; }
+        .p2p-panel button { padding: 8px; background: #ff3b30; color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .p2p-key { font-family: monospace; background: #000; padding: 6px; border-radius: 6px; word-break: break-all; color: #30d158; user-select: all; cursor: pointer; }
+
+        /* Окно создания поста */
+        .create-post { background-color: #0a0a0c; padding: 16px; border-radius: 16px; border: 1px solid #1c1c1e; }
+        .create-post textarea { width: 100%; height: 75px; background: #1c1c1e; border: 1px solid #2c2c2e; color: #fff; padding: 12px; border-radius: 10px; font-size: 15px; resize: none; outline: none; margin-bottom: 10px; }
+        .create-post textarea:focus { border-color: #ff3b30; background: #000; }
+        .form-footer { display: flex; justify-content: space-between; align-items: center; }
+        .nickname-input { background: #1c1c1e; border: 1px solid #2c2c2e; color: #fff; padding: 6px 12px; border-radius: 8px; font-size: 13px; width: 140px; outline: none; }
+        .btn-submit { padding: 8px 14px; border: none; border-radius: 18px; font-weight: bold; cursor: pointer; background-color: #ff3b30; color: #fff; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo" onclick="location.reload()">итд. p2p</div>
+        <div class="p2p-status" id="p2pStatus">Оффлайн</div>
+    </header>
+    <style>
+        /* Стили постов и реакций */
+        .feed { display: flex; flex-direction: column; gap: 12px; }
+        .post { background-color: #0a0a0c; padding: 16px; border-radius: 16px; border: 1px solid #1c1c1e; display: flex; flex-direction: column; gap: 10px; }
+        .post-header { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: #636366; }
+        .post-author { font-weight: 700; color: #ffffff; }
+        .post-content { font-size: 15px; line-height: 20px; white-space: pre-wrap; word-wrap: break-word; color: #e5e5ea; }
+        .post-footer { display: flex; gap: 14px; align-items: center; border-top: 1px solid #1c1c1e; padding-top: 10px; margin-top: 4px; }
+        .action-group { display: flex; align-items: center; gap: 6px; background: transparent; border: none; color: #8e8e93; font-size: 13px; font-weight: bold; cursor: pointer; }
+        .action-group.active { color: #30d158; }
+        .action-group svg { width: 16px; height: 16px; fill: currentColor; }
+    </style>
+
+    <main class="container">
+        <!-- Панель прямого P2P подключения к другу -->
+        <section class="p2p-panel">
+            <div><strong>Прямая связь с другом (Без серверов):</strong></div>
+            <div>Ваш секретный P2P-код (Нажмите, чтобы скопировать и отправить другу):</div>
+            <div class="p2p-key" id="myP2PKey" onclick="copyMyKey()">Загрузка кода...</div>
+            <div style="margin-top: 6px;">Вставьте P2P-код друга, чтобы подключить его к своей ленте:</div>
+            <input type="text" id="friendKeyInput" placeholder="Вставьте код друга сюда...">
+            <button onclick="connectToFriend()">Подключиться напрямую 🔗</button>
+        </section>
+
+        <!-- Блок создания поста -->
+        <section class="create-post">
+            <form onsubmit="handleCreatePost(event)">
+                <textarea id="postTextArea" placeholder="Напиши пост, он улетит другу напрямую через интернет..." maxlength="1000" required></textarea>
+                <div class="form-footer">
+                    <input type="text" id="authorInput" class="nickname-input" placeholder="Ваш никнейм" value="Аноним" required>
+                    <button type="submit" class="btn-submit">Пульнуть пост 🚀</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Лента новостей -->
+        <h3 style="font-size: 16px; color: #8e8e93; margin-left: 4px;">Общая P2P Лента</h3>
+        <section class="feed" id="postFeed"></section>
+    </main>
+
+    <!-- Подключаем открытую независимую библиотеку PeerJS, которая бесплатно связывает браузеры напрямую -->
+    <script src="https://unpkg.com"></script>
+    <script>
+        const LIKE_SVG = `<svg viewBox="0 0 24 24"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.59C7.22 7.95 7 8.45 7 9v10c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"></path></svg>`;
+
+        let posts = JSON.parse(localStorage.getItem('p2pPosts')) || [
+            { id: 1, author: "Админ", content: "Добро пожаловать в P2P сеть! Отправьте свой P2P-код другу. Как только он вставит его, вы свяжетесь напрямую, и ваши посты полетят на его экран без баз данных и облаков.", date: "Система" }
+        ];
+
+        let peer = null;
+        let connections = []; // Список подключенных друзей
+
+        // 1. Создаем прямую P2P точку в браузере
+        function initP2P() {
+            // Инициализируем бесплатный сетевой узел PeerJS
+            peer = new Peer();
+
+            // Когда сеть выдала нам наш личный уникальный интернет-ключ
+            peer.on('open', (id) => {
+                document.getElementById('myP2PKey').innerText = id;
+                document.getElementById('p2pStatus').innerText = "Готов к связи";
+                document.getElementById('p2pStatus').className = "p2p-status online";
+            });
+
+            // Когда К НАМ кто-то подключается напрямую по нашему коду
+            peer.on('connection', (conn) => {
+                setupConnection(conn);
+            });
+        }
+
+        // Настройка канала связи с другом
+        function setupConnection(conn) {
+            connections.push(conn);
+            document.getElementById('p2pStatus').innerText = `Связано друзей: ${connections.length}`;
+
+            // Сразу отправляем другу все наши накопленные посты, чтобы обновить его ленту
+            conn.on('open', () => {
+                conn.send({ type: 'SYNC_POSTS', data: posts });
+            });
+
+            // Когда от друга прилетают новые данные (посты или лайки)
+            conn.on('data', (payload) => {
+                if (payload.type === 'SYNC_POSTS' || payload.type === 'NEW_POST') {
+                    mergePosts(payload.data);
+                }
+                if (payload.type === 'LIKE') {
+                    processLike(payload.postId);
+                }
+            });
+        }
+
+        // Входящее подключение: когда МЫ вставляем код друга и подключаемся к нему
+        function connectToFriend() {
+            const friendKey = document.getElementById('friendKeyInput').value.trim();
+            if (!friendKey) return alert("Вставьте код друга!");
+
+            const conn = peer.connect(friendKey);
+            setupConnection(conn);
+            document.getElementById('friendKeyInput').value = '';
+            alert("Запрос связи отправлен! Ждем синхронизации...");
+        }
+
+        // Функция отправки данных ВСЕМ подключенным друзьям одновременно
+        function broadcast(payload) {
+            connections.forEach(conn => {
+                if (conn.open) {
+                    conn.send(payload);
+                }
+            });
+        }
+
+        // Добавление нового поста
+        function handleCreatePost(event) {
+            event.preventDefault();
+            const textInput = document.getElementById('postTextArea');
+            const authorInput = document.getElementById('authorInput');
+
+            const newPost = {
+                id: Date.now() + Math.random(), // Уникальный ID
+                author: authorInput.value.trim() || "Аноним",
+                content: textInput.value.trim(),
+                date: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+                likes: 0
+            };
+
+            posts.unshift(newPost);
+            localStorage.setItem('p2pPosts', JSON.stringify(posts));
+            textInput.value = '';
+            renderFeed();
+
+            // САМАЯ ВАЖНАЯ СТРОКА: отправляем этот пост напрямую в экраны всех друзей в сети!
+            broadcast({ type: 'NEW_POST', data: [newPost] });
+        }
+
+        // Лайки напрямую через P2P
+        function handleLike(postId) {
+            processLike(postId);
+            // Передаем информацию о лайке друзьям, чтобы у них тоже обновился счетчик
+            broadcast({ type: 'LIKE', postId: postId });
+        }
+
+        function processLike(postId) {
+            const post = posts.find(p => p.id === postId);
+            if (post) {
+                post.likes = (post.likes || 0) + 1;
+                localStorage.setItem('p2pPosts', JSON.stringify(posts));
+                renderFeed();
+            }
+        }
+
+        // Объединение нашей ленты и ленты, прилетевшей от друга
+        function mergePosts(incomingPosts) {
+            incomingPosts.forEach(incPost => {
+                if (!posts.some(p => p.id === incPost.id)) {
+                    posts.unshift(incPost);
+                }
+            });
+            // Сортируем по ID (по времени создания), чтобы лента была ровной
+            posts.sort((a, b) => b.id - a.id);
+            localStorage.setItem('p2pPosts', JSON.stringify(posts));
+            renderFeed();
+        }
+
+        // Копирование своего кода по клику
+        function copyMyKey() {
+            const keyText = document.getElementById('myP2PKey').innerText;
+            if (keyText === "Загрузка кода...") return;
+            navigator.clipboard.writeText(keyText);
+            alert("Ваш P2P-код скопирован! Отправьте его другу.");
+        }
+
+        // Рендеринг ленты
+        function renderFeed() {
+            const feedContainer = document.getElementById('postFeed');
+            feedContainer.innerHTML = posts.map(post => `
+                <article class="post">
+                    <div class="post-header">
+                        <span class="post-author">👤 ${escapeHTML(post.author)}</span>
+                        <span class="post-date">${post.date}</span>
+                    </div>
+                    <div class="post-content">${escapeHTML(post.content)}</div>
+                    <div class="post-footer">
+                        <button class="action-group ${post.likes > 0 ? 'active' : ''}" onclick="handleLike(${post.id})">
+                            ${LIKE_SVG} <span>${post.likes || 0}</span>
+                        </button>
+                    </div>
+                </article>
+            `).join('');
+        }
+
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        }
+
+        // Запуск
+        initP2P();
+        renderFeed();
+    </script>
+</body>
+</html>
